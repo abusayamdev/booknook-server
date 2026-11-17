@@ -1,15 +1,16 @@
 {
   "name": "booknook-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "description": "BookNook library management backend API",
+  "main": "dist/server.js",
   "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.10",
