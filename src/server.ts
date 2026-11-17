@@ -3,7 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import { connectDatabase } from "./config/database.js";
+
 import healthRoutes from "./routes/health.routes.js";
+import bookRoutes from "./routes/book.routes.js";
 
 dotenv.config();
 
@@ -17,6 +19,7 @@ app.use(express.json());
 
 // API Routes
 app.use("/api/health", healthRoutes);
+app.use("/api/books", bookRoutes);
 
 // Root Route
 app.get("/", (_req, res) => {

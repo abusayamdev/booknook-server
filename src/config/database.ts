@@ -1,4 +1,6 @@
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, type Db } from "mongodb";
+
+import type { BookDocument } from "../types/book.types.js";
 
 let client: MongoClient | null = null;
 let database: Db | null = null;
@@ -37,6 +39,7 @@ export async function connectDatabase(): Promise<Db> {
     }
 
     database = null;
+
     throw error;
   }
 }
@@ -47,4 +50,8 @@ export function getDatabase(): Db {
   }
 
   return database;
+}
+
+export function getBooksCollection() {
+  return getDatabase().collection<BookDocument>("books");
 }
