@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import { connectDatabase } from "./config/database.js";
 import healthRoutes from "./routes/health.routes.js";
 
 dotenv.config();
@@ -26,6 +27,17 @@ app.get("/", (_req, res) => {
 });
 
 // Start Server
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`BookNook server running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await connectDatabase();
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`BookNook server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start BookNook server:", error);
+    process.exit(1);
+  }
+}
+
+void startServer();
