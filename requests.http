@@ -18,6 +18,11 @@ GET http://localhost:5000/api/borrows
 Authorization: Bearer YOUR_JWT_TOKEN
 
 
+### Return Book
+DELETE http://localhost:5000/api/borrows/PASTE_BORROW_ID_HERE
+Authorization: Bearer YOUR_JWT_TOKEN
+
+
 ### Create Borrow
 POST http://localhost:5000/api/borrows
 Content-Type: application/json
