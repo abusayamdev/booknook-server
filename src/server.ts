@@ -6,6 +6,7 @@ import { connectDatabase } from "./config/database.js";
 
 import healthRoutes from "./routes/health.routes.js";
 import bookRoutes from "./routes/book.routes.js";
+import borrowRoutes from "./routes/borrow.routes.js";
 
 dotenv.config();
 
@@ -18,8 +19,10 @@ app.use(cors());
 app.use(express.json());
 
 // API Routes
+// API Routes
 app.use("/api/health", healthRoutes);
 app.use("/api/books", bookRoutes);
+app.use("/api/borrows", borrowRoutes);
 
 // Root Route
 app.get("/", (_req, res) => {

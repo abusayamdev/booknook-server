@@ -1,6 +1,7 @@
 import { MongoClient, type Db } from "mongodb";
 
 import type { BookDocument } from "../types/book.types.js";
+import type { BorrowDocument } from "../types/borrow.types.js";
 
 let client: MongoClient | null = null;
 let database: Db | null = null;
@@ -26,6 +27,11 @@ export async function connectDatabase(): Promise<Db> {
 
     // Verify database connection
     await database.command({ ping: 1 });
+
+    // Prevent duplicate active borrowing by the same user
+    await database
+      .collection("borrows")
+      .createIndex({ bookId: 1, userEmail: 1 }, { unique: true });
 
     console.log(`MongoDB connected successfully: ${databaseName}`);
 
@@ -54,4 +60,18 @@ export function getDatabase(): Db {
 
 export function getBooksCollection() {
   return getDatabase().collection<BookDocument>("books");
+}
+
+export function getBorrowsCollection() {
+  return getDatabase().collection<BorrowDocument>("borrows");
+}
+
+export function getMongoClient(): MongoClient {
+  if (!client) {
+    throw new Error(
+      "MongoDB client is not connected. Call connectDatabase() first.",
+    );
+  }
+
+  return client;
 }

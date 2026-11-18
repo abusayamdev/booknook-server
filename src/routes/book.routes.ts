@@ -5,6 +5,7 @@ import {
   getBookById,
   createBook,
   updateBook,
+  deleteBook,
 } from "../controllers/book.controller.js";
 
 import { verifyToken } from "../middleware/auth.middleware.js";
@@ -22,5 +23,8 @@ router.post("/", verifyToken, createBook);
 
 // PATCH /api/books/:id (Protected)
 router.patch("/:id", verifyToken, updateBook);
+
+// DELETE /api/books/:id (Protected)
+router.delete("/:id", verifyToken, deleteBook);
 
 export default router;

@@ -282,3 +282,97 @@ if (updateData.totalCopies !== undefined) {
   }
 }
 
+
+
+export async function deleteBook(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { id } = req.params;
+
+    // Validate MongoDB ObjectId
+    if (typeof id !== "string" || !ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid book ID.",
+      });
+      return;
+    }
+
+    // Require authenticated user
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "You must be logged in to delete a book.",
+      });
+      return;
+    }
+
+    const booksCollection = getBooksCollection();
+    const bookId = new ObjectId(id);
+
+    // Find existing book
+    const existingBook = await booksCollection.findOne({
+      _id: bookId,
+    });
+
+    if (!existingBook) {
+      res.status(404).json({
+        success: false,
+        message: "Book not found.",
+      });
+      return;
+    }
+
+    // Check book ownership
+    if (existingBook.addedBy.email !== req.user.email) {
+      res.status(403).json({
+        success: false,
+        message: "You are not allowed to delete this book.",
+      });
+      return;
+    }
+
+    // Prevent deletion while copies are borrowed
+    if (existingBook.availableCopies !== existingBook.totalCopies) {
+      res.status(409).json({
+        success: false,
+        message: "This book cannot be deleted while copies are borrowed.",
+        totalCopies: existingBook.totalCopies,
+        availableCopies: existingBook.availableCopies,
+      });
+      return;
+    }
+
+    // Delete only if ownership and copy counts remain unchanged
+    const result = await booksCollection.deleteOne({
+      _id: bookId,
+      "addedBy.email": req.user.email,
+      totalCopies: existingBook.totalCopies,
+      availableCopies: existingBook.availableCopies,
+    });
+
+    if (result.deletedCount === 0) {
+      res.status(409).json({
+        success: false,
+        message: "Book data changed. Please refresh and try again.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Book deleted successfully.",
+      data: {
+        id: bookId.toString(),
+        title: existingBook.title,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
