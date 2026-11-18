@@ -32,7 +32,12 @@ export const createBookSchema = z.object({
     .max(10000, "Total copies cannot exceed 10000."),
 });
 
-export const updateBookSchema = createBookSchema.partial();
+export const updateBookSchema = createBookSchema
+  .partial()
+  .refine(
+    (data) => Object.keys(data).length > 0,
+    "At least one field is required for an update.",
+  );
 
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
