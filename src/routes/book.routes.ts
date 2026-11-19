@@ -8,23 +8,26 @@ import {
   deleteBook,
 } from "../controllers/book.controller.js";
 
-import { verifyToken } from "../middleware/auth.middleware.js";
+import {
+  verifyToken,
+  optionalVerifyToken,
+} from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-// GET /api/books
-router.get("/", getAllBooks);
+// Public books + optional authentication for My Books
+router.get("/", optionalVerifyToken, getAllBooks);
 
-// GET /api/books/:id
+// Get single book
 router.get("/:id", getBookById);
 
-// POST /api/books (Protected)
+// Create book
 router.post("/", verifyToken, createBook);
 
-// PATCH /api/books/:id (Protected)
+// Update book
 router.patch("/:id", verifyToken, updateBook);
 
-// DELETE /api/books/:id (Protected)
+// Delete book
 router.delete("/:id", verifyToken, deleteBook);
 
 export default router;

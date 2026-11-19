@@ -76,10 +76,31 @@ export async function verifyToken(
     req.user = { id, name, email };
 
     next();
-  } catch {
+    } catch (error) {
+    console.error("JWT Verification Error:", error);
+
     res.status(401).json({
       success: false,
       message: "Invalid or expired authentication token.",
     });
   }
+}
+
+// Optional authentication
+// Public requests are allowed without a token.
+// If a token is provided, it must be valid.
+
+export async function optionalVerifyToken(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const authorization = req.headers.authorization;
+
+  if (!authorization) {
+    next();
+    return;
+  }
+
+  await verifyToken(req, res, next);
 }

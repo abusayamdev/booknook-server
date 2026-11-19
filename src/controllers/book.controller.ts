@@ -2,28 +2,45 @@ import type { Request, Response, NextFunction } from "express";
 import { ObjectId } from "mongodb";
 
 import { getBooksCollection } from "../config/database.js";
-import { createBookSchema } from "../schemas/book.schema.js";
-import { updateBookSchema } from "../schemas/book.schema.js";
+import { createBookSchema, updateBookSchema } from "../schemas/book.schema.js";
 import type { BookDocument } from "../types/book.types.js";
 
+// ============================================
 // GET /api/books
-// Get all books
+// Get all books or authenticated user's books
+// ============================================
+
 export async function getAllBooks(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
     const booksCollection = getBooksCollection();
 
+    const mine = req.query.mine === "true";
+
+    // Private owner filtering
+    if (mine && !req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Please login to view your books.",
+      });
+      return;
+    }
+
+    const filter = mine ? { "addedBy.email": req.user!.email } : {};
+
     const books = await booksCollection
-      .find({})
+      .find(filter)
       .sort({ createdAt: -1 })
       .toArray();
 
     res.status(200).json({
       success: true,
-      message: "Books retrieved successfully.",
+      message: mine
+        ? "Your books retrieved successfully."
+        : "Books retrieved successfully.",
       total: books.length,
       data: books,
     });
@@ -32,8 +49,11 @@ export async function getAllBooks(
   }
 }
 
+// ============================================
 // GET /api/books/:id
 // Get a single book
+// ============================================
+
 export async function getBookById(
   req: Request,
   res: Response,
@@ -74,7 +94,10 @@ export async function getBookById(
   }
 }
 
-
+// ============================================
+// POST /api/books
+// Create a new book
+// ============================================
 
 export async function createBook(
   req: Request,
@@ -82,6 +105,14 @@ export async function createBook(
   next: NextFunction,
 ) {
   try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "You must be logged in to add a book.",
+      });
+      return;
+    }
+
     const validation = createBookSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -93,28 +124,16 @@ export async function createBook(
       return;
     }
 
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "You must be logged in to add a book.",
-      });
-      return;
-    }
-
     const booksCollection = getBooksCollection();
-
     const now = new Date();
 
     const book = {
       ...validation.data,
-
       addedBy: {
         name: req.user.name,
         email: req.user.email,
       },
-
       availableCopies: validation.data.totalCopies,
-
       createdAt: now,
       updatedAt: now,
     };
@@ -135,7 +154,10 @@ export async function createBook(
   }
 }
 
-
+// ============================================
+// PATCH /api/books/:id
+// Update an existing book
+// ============================================
 
 export async function updateBook(
   req: Request,
@@ -145,7 +167,6 @@ export async function updateBook(
   try {
     const { id } = req.params;
 
-    // Validate MongoDB ObjectId
     if (typeof id !== "string" || !ObjectId.isValid(id)) {
       res.status(400).json({
         success: false,
@@ -154,7 +175,6 @@ export async function updateBook(
       return;
     }
 
-    // Require authenticated user
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -163,7 +183,6 @@ export async function updateBook(
       return;
     }
 
-    // Validate request body
     const validation = updateBookSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -178,7 +197,6 @@ export async function updateBook(
     const booksCollection = getBooksCollection();
     const bookId = new ObjectId(id);
 
-    // Find existing book
     const existingBook = await booksCollection.findOne({
       _id: bookId,
     });
@@ -191,7 +209,7 @@ export async function updateBook(
       return;
     }
 
-    // Check book ownership
+    // Only the original contributor can update this book
     if (existingBook.addedBy.email !== req.user.email) {
       res.status(403).json({
         success: false,
@@ -202,52 +220,41 @@ export async function updateBook(
 
     const updateData = validation.data;
 
-    // Keep borrowed copies unchanged when total copies are updated
-    if (updateData.totalCopies !== undefined) {
-      const borrowedCopies =
-        existingBook.totalCopies - existingBook.availableCopies;
+    // Calculate currently borrowed copies
+    const borrowedCopies =
+      existingBook.totalCopies - existingBook.availableCopies;
 
-      if (updateData.totalCopies < borrowedCopies) {
-        res.status(400).json({
-          success: false,
-          message: "Total copies cannot be less than borrowed copies.",
+    // Do not allow total copies below borrowed copies
+    if (
+      updateData.totalCopies !== undefined &&
+      updateData.totalCopies < borrowedCopies
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Total copies cannot be less than borrowed copies.",
+      });
+      return;
+    }
+
+    const updatedFields: Partial<BookDocument> = {
+      updatedAt: new Date(),
+    };
+
+    // Add only defined fields
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        Object.assign(updatedFields, {
+          [key]: value,
         });
-        return;
       }
     }
 
-   
-const updatedFields: Partial<BookDocument> = {
-  updatedAt: new Date(),
-};
-
-// Add only defined values to the update object
-for (const [key, value] of Object.entries(updateData)) {
-  if (value !== undefined) {
-    Object.assign(updatedFields, {
-      [key]: value,
-    });
-  }
-}
-
-if (updateData.totalCopies !== undefined) {
-  const borrowedCopies =
-    existingBook.totalCopies - existingBook.availableCopies;
-
-  updatedFields.availableCopies = updateData.totalCopies - borrowedCopies;
-}
-
-
+    // Preserve borrowed copies when total copies change
     if (updateData.totalCopies !== undefined) {
-      const borrowedCopies =
-        existingBook.totalCopies - existingBook.availableCopies;
-
-      Object.assign(updatedFields, {
-        availableCopies: updateData.totalCopies - borrowedCopies,
-      });
+      updatedFields.availableCopies = updateData.totalCopies - borrowedCopies;
     }
 
-    // Update only if the book's copy counts have not changed meanwhile
+    // Update only if ownership and copy counts remain unchanged
     const result = await booksCollection.updateOne(
       {
         _id: bookId,
@@ -282,7 +289,10 @@ if (updateData.totalCopies !== undefined) {
   }
 }
 
-
+// ============================================
+// DELETE /api/books/:id
+// Delete an existing book
+// ============================================
 
 export async function deleteBook(
   req: Request,
@@ -292,7 +302,6 @@ export async function deleteBook(
   try {
     const { id } = req.params;
 
-    // Validate MongoDB ObjectId
     if (typeof id !== "string" || !ObjectId.isValid(id)) {
       res.status(400).json({
         success: false,
@@ -301,7 +310,6 @@ export async function deleteBook(
       return;
     }
 
-    // Require authenticated user
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -313,7 +321,6 @@ export async function deleteBook(
     const booksCollection = getBooksCollection();
     const bookId = new ObjectId(id);
 
-    // Find existing book
     const existingBook = await booksCollection.findOne({
       _id: bookId,
     });
@@ -326,7 +333,7 @@ export async function deleteBook(
       return;
     }
 
-    // Check book ownership
+    // Only the original contributor can delete this book
     if (existingBook.addedBy.email !== req.user.email) {
       res.status(403).json({
         success: false,
@@ -335,7 +342,7 @@ export async function deleteBook(
       return;
     }
 
-    // Prevent deletion while copies are borrowed
+    // Prevent deletion while books are borrowed
     if (existingBook.availableCopies !== existingBook.totalCopies) {
       res.status(409).json({
         success: false,
@@ -346,7 +353,6 @@ export async function deleteBook(
       return;
     }
 
-    // Delete only if ownership and copy counts remain unchanged
     const result = await booksCollection.deleteOne({
       _id: bookId,
       "addedBy.email": req.user.email,
@@ -374,5 +380,3 @@ export async function deleteBook(
     next(error);
   }
 }
-
-

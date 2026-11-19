@@ -33,3 +33,21 @@ Authorization: Bearer YOUR_JWT_TOKEN
   "returnDate": "2026-12-02T00:00:00.000Z"
 }
 
+
+### Test API 404 Handler
+GET http://localhost:5000/api/unknown-route
+
+###
+
+### Test Invalid JSON
+POST http://localhost:5000/api/books
+Content-Type: application/json
+
+{
+  "title":
+}
+
+
+### CORS Allowed Origin
+GET http://localhost:5000/api/books
+Origin: http://localhost:3000
