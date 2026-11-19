@@ -65,6 +65,20 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 
+let databaseConnection: Promise<void> | undefined;
+if (process.env.VERCEL) {
+  app.use(async (_req, _res, next) => {
+    databaseConnection ??= connectDatabase()
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        databaseConnection = undefined;
+        throw error;
+      });
+
+    await databaseConnection;
+    next();
+  });
+}
 
 // API Routes
 app.use("/api/health", healthRoutes);
@@ -99,4 +113,8 @@ async function startServer() {
   }
 }
 
-void startServer();
+export default app;
+
+if (!process.env.VERCEL) {
+  void startServer();
+}
