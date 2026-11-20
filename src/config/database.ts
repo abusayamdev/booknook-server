@@ -73,5 +73,8 @@ export function getMongoClient(): MongoClient {
     );
   }
 
-  return client;
+  return client;  
 }
+
+
+/// Database connection management for serverless environments (like Vercel)
